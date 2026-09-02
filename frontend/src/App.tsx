@@ -15,7 +15,7 @@ export function App() {
       <div className="w-screen h-screen overflow-hidden bg-cb-yellow-main font-montserrat">
         <Routes>
           {/* Rutas principales del sistema */}
-          <Route path="/kiosco" element={<ProtectedRoute><KioskView /></ProtectedRoute>} />
+          <Route path="/kiosco" element={<KioskView />} />
           <Route path="/login" element={<LoginView />} />
           
           {/* Rutas administrativas y de TV */}

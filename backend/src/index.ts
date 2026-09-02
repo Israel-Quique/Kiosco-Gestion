@@ -43,7 +43,7 @@ io.on('connection', (socket) => {
   });
 });
 
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 3002;
 
 httpServer.listen(PORT, () => {
   console.log(`

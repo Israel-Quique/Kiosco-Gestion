@@ -263,7 +263,7 @@ const BranchSwitcherModal: React.FC<{
 // ─── Pantalla de inactividad ───────────────────────────────────────────────────
 const IdleScreen: React.FC<{ onWakeUp: () => void }> = ({ onWakeUp }) => (
   <div
-    className="fixed inset-0 z-40 flex flex-col items-center justify-center cursor-pointer bg-gradient-to-br from-[#071930] via-[#0b2545] to-[#0e305d] animate-fadeIn"
+    className="fixed inset-0 z-40 flex flex-col items-center justify-center cursor-pointer bg-gradient-to-br from-[#fff08a] via-[#ffcc00] to-[#f59e0b] animate-fadeIn"
     onClick={onWakeUp}
   >
     <div className="relative flex flex-col items-center">
@@ -275,10 +275,10 @@ const IdleScreen: React.FC<{ onWakeUp: () => void }> = ({ onWakeUp }) => (
       <span className="text-[#ffcc00] font-black text-xl uppercase tracking-widest relative z-10 mb-2">
         Correos de Bolivia
       </span>
-      <span className="text-white font-black text-4xl uppercase tracking-tight relative z-10 mb-3">
+      <span className="text-cb-blue-navy font-black text-4xl uppercase tracking-tight relative z-10 mb-3">
         Toque para comenzar
       </span>
-      <p className="text-white/60 text-sm font-semibold relative z-10">
+      <p className="text-cb-blue-navy/70 text-sm font-semibold relative z-10">
         Use el botón central para obtener su turno rápidamente.
       </p>
     </div>

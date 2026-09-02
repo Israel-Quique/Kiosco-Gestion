@@ -39,7 +39,7 @@ exports.io.on('connection', (socket) => {
         console.log(`🔌 Cliente desconectado: ${socket.id}`);
     });
 });
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 3002;
 httpServer.listen(PORT, () => {
     console.log(`
   ======================================================
