@@ -1,0 +1,66 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model Service {
+  id          String   @id @default(uuid())
+  code        String   @unique
+  name        String
+  title       String
+  description String
+  url         String
+  icon        String
+  colorTheme  String   @default("blue")
+  imageUrl    String
+  orderIndex  Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Ticket {
+  id           String    @id @default(uuid())
+  ticketNumber String
+  category     String    @default("GENERAL") // GENERAL, ENCOMIENDAS, CAJAS, RECLAMOS
+  serviceCode  String?
+  kioskCode    String    @default("KIOSK-01")
+  status       String    @default("WAITING") // WAITING, CALLED, ATTENDED, CANCELLED
+  windowNumber Int?
+  createdAt    DateTime  @default(now())
+  calledAt     DateTime?
+  completedAt  DateTime?
+}
+
+model Kiosk {
+  id            String   @id @default(uuid())
+  code          String   @unique
+  name          String
+  location      String
+  ipAddress     String?
+  isOnline      Boolean  @default(true)
+  lastHeartbeat DateTime @default(now())
+  createdAt     DateTime @default(now())
+}
+
+model UsageMetric {
+  id          String   @id @default(uuid())
+  kioskCode   String
+  serviceCode String
+  actionType  String   // SERVICE_OPEN, TICKET_PRINT, HELP_OPEN
+  timestamp   DateTime @default(now())
+}
+
+model User {
+  id           String   @id @default(uuid())
+  username     String   @unique
+  passwordHash String
+  fullName     String
+  role         String   @default("OPERATOR") // ADMIN, OPERATOR
+  createdAt    DateTime @default(now())
+}
+

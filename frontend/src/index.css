@@ -1,0 +1,172 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    @apply m-0 p-0 font-montserrat text-cb-blue-deep bg-cb-yellow-main select-none;
+  }
+}
+
+/* Animaciones y utilidades personalizadas */
+@keyframes ringPulse {
+  0% { transform: scale(0.98); opacity: 0.9; }
+  50% { transform: scale(1.05); opacity: 0; }
+  100% { transform: scale(0.98); opacity: 0.9; }
+}
+
+@keyframes bounceSoft {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+.animate-ring-pulse {
+  animation: ringPulse 2.6s cubic-bezier(0.24, 0, 0.38, 1) infinite;
+}
+
+.animate-bounce-soft {
+  animation: bounceSoft 2s ease-in-out infinite;
+}
+
+/* Efecto de ticket térmico */
+.ticket-receipt-shadow {
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(0, 0, 0, 0.05);
+}
+
+.loading-scene {
+  position: relative;
+  width: min(420px, 78vw);
+  height: 150px;
+  margin-bottom: 16px;
+  overflow: hidden;
+  border-bottom: 3px solid #ffcc00;
+  background: linear-gradient(180deg, rgba(255, 218, 91, 0.22), rgba(41, 122, 176, 0.28));
+}
+
+.loading-sun {
+  position: absolute;
+  top: 18px;
+  right: 15%;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: #ffcc00;
+  box-shadow: 0 0 28px rgba(255, 204, 0, 0.8);
+}
+
+.loading-cloud {
+  position: absolute;
+  width: 70px;
+  height: 14px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.72);
+  animation: loadingCloudMove 5s linear infinite;
+}
+
+.loading-cloud::before,
+.loading-cloud::after {
+  content: '';
+  position: absolute;
+  bottom: 4px;
+  border-radius: 50%;
+  background: inherit;
+}
+
+.loading-cloud::before { left: 16px; width: 25px; height: 25px; }
+.loading-cloud::after { left: 38px; width: 18px; height: 18px; }
+.loading-cloud-one { top: 38px; left: -80px; }
+.loading-cloud-two { top: 68px; left: -190px; animation-delay: 2.2s; transform: scale(0.7); }
+
+.loading-road {
+  position: absolute;
+  right: 0;
+  bottom: 16px;
+  left: 0;
+  height: 3px;
+  background: #ffcc00;
+  box-shadow: 0 7px 0 rgba(255, 255, 255, 0.18);
+}
+
+.loading-tree {
+  position: absolute;
+  bottom: 20px;
+  width: 10px;
+  height: 52px;
+  background: #ffcc00;
+  clip-path: polygon(50% 0, 100% 58%, 70% 58%, 88% 100%, 12% 100%, 30% 58%, 0 58%);
+  animation: loadingTreeMove 2.8s linear infinite;
+}
+
+.loading-tree-one { left: 10%; }
+.loading-tree-two { left: 70%; animation-delay: 1.4s; }
+
+.loading-truck {
+  position: absolute;
+  bottom: 20px;
+  left: -90px;
+  width: 82px;
+  height: 46px;
+  animation: loadingTruckMove 3.5s linear infinite;
+}
+
+.loading-truck-box {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 52px;
+  height: 31px;
+  border: 3px solid #fff;
+  border-radius: 4px;
+  background: #22a6c9;
+  box-shadow: inset 0 -7px 0 rgba(7, 25, 48, 0.12);
+}
+
+.loading-truck-cab {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 30px;
+  height: 28px;
+  border: 3px solid #fff;
+  border-radius: 5px 5px 2px 2px;
+  background: #ffcc00;
+}
+
+.loading-wheel {
+  position: absolute;
+  bottom: -7px;
+  width: 15px;
+  height: 15px;
+  border: 3px solid #fff;
+  border-radius: 50%;
+  background: #071930;
+  animation: loadingWheelSpin 0.45s linear infinite;
+}
+
+.loading-wheel-front { right: 5px; }
+.loading-wheel-back { left: 8px; }
+
+@keyframes loadingTruckMove {
+  from { transform: translateX(0); }
+  to { transform: translateX(calc(min(420px, 78vw) + 100px)); }
+}
+
+@keyframes loadingTreeMove {
+  from { transform: translateX(0); }
+  to { transform: translateX(-170px); }
+}
+
+@keyframes loadingCloudMove {
+  from { transform: translateX(0); }
+  to { transform: translateX(calc(min(420px, 78vw) + 220px)); }
+}
+
+@keyframes loadingWheelSpin {
+  to { transform: rotate(360deg); }
+}
+
