@@ -1,10 +1,25 @@
 import { io, Socket } from 'socket.io-client';
 import { ServiceItem, TicketItem, QueueData, KioskItem, AnalyticsOverview } from '../types/index.js';
 
-const API_BASE_URL = 'http://localhost:3001/api';
+const API_HOST = window.location.hostname || 'localhost';
+const API_BASE_URL = `http://${API_HOST}:3001/api`;
+
+export interface ConnectionCheck {
+  ok: boolean;
+  status: number | null;
+  responseTimeMs: number;
+  checkedAt: string;
+  message?: string;
+}
+
+export interface AppConfig {
+  visibleCardsCount: number;
+  idleScreenEnabled: boolean;
+  idleTimeoutSeconds: number;
+}
 
 // Socket.io singleton
-export const socket: Socket = io('http://localhost:3001', {
+export const socket: Socket = io(`http://${API_HOST}:3001`, {
   autoConnect: true,
   reconnection: true,
 });
@@ -24,6 +39,17 @@ export const api = {
     return data.data;
   },
 
+  async createService(input: Omit<ServiceItem, 'id'>): Promise<ServiceItem> {
+    const res = await fetch(`${API_BASE_URL}/services`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || 'No se pudo crear el servicio');
+    return data.data;
+  },
+
   async updateService(id: string, updates: Partial<ServiceItem>): Promise<ServiceItem> {
     const res = await fetch(`${API_BASE_URL}/services/${id}`, {
       method: 'PUT',
@@ -39,6 +65,35 @@ export const api = {
       method: 'PATCH',
     });
     const data = await res.json();
+    return data.data;
+  },
+
+  async checkServiceConnection(url: string): Promise<ConnectionCheck> {
+    const res = await fetch(`${API_BASE_URL}/services/check-connection`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || 'No se pudo verificar la conexión');
+    return data.data;
+  },
+
+  async getConfig(): Promise<AppConfig> {
+    const res = await fetch(`${API_BASE_URL}/config`);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || 'No se pudo cargar la configuración');
+    return data.data;
+  },
+
+  async saveConfig(config: AppConfig): Promise<AppConfig> {
+    const res = await fetch(`${API_BASE_URL}/config`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(config),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || 'No se pudo guardar la configuración');
     return data.data;
   },
 

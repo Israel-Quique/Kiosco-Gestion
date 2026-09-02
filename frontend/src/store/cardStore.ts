@@ -14,11 +14,13 @@ export interface KioskCard {
 export interface DesignConfig {
   visibleCardsCount: number;
   idleScreenEnabled: boolean;
+  idleTimeoutSeconds: number;
 }
 
 const STORAGE_KEY = 'kiosco_agbc_cards';
 const DESIGN_STORAGE_KEY = 'kiosco_agbc_design';
 const DEFAULT_VISIBLE_CARDS = 6;
+const DEFAULT_IDLE_TIMEOUT_SECONDS = 90;
 
 export const DEFAULT_CARDS: KioskCard[] = [
   {
@@ -93,7 +95,7 @@ export function getKioskCards(): KioskCard[] {
 export function loadDesignConfig(branchCode?: string): DesignConfig {
   try {
     const raw = localStorage.getItem(DESIGN_STORAGE_KEY);
-    if (!raw) return { visibleCardsCount: DEFAULT_VISIBLE_CARDS, idleScreenEnabled: true };
+    if (!raw) return { visibleCardsCount: DEFAULT_VISIBLE_CARDS, idleScreenEnabled: true, idleTimeoutSeconds: DEFAULT_IDLE_TIMEOUT_SECONDS };
 
     const parsed = JSON.parse(raw) as Partial<DesignConfig> & Record<string, Partial<DesignConfig>>;
     const branchConfig = branchCode ? parsed[branchCode] : undefined;
@@ -101,25 +103,28 @@ export function loadDesignConfig(branchCode?: string): DesignConfig {
     const config = branchCode ? (branchConfig || {}) : parsed;
     const count = Number(config.visibleCardsCount);
     const idleScreenEnabled = config.idleScreenEnabled !== false;
+    const idleTimeoutSeconds = Number(config.idleTimeoutSeconds);
 
     if (!Number.isFinite(count)) {
-      return { visibleCardsCount: DEFAULT_VISIBLE_CARDS, idleScreenEnabled };
+      return { visibleCardsCount: DEFAULT_VISIBLE_CARDS, idleScreenEnabled, idleTimeoutSeconds: Number.isFinite(idleTimeoutSeconds) ? Math.min(Math.max(Math.trunc(idleTimeoutSeconds), 5), 3600) : DEFAULT_IDLE_TIMEOUT_SECONDS };
     }
 
     return {
       visibleCardsCount: Math.min(Math.max(Math.trunc(count), 1), DEFAULT_VISIBLE_CARDS),
       idleScreenEnabled,
+      idleTimeoutSeconds: Number.isFinite(idleTimeoutSeconds) ? Math.min(Math.max(Math.trunc(idleTimeoutSeconds), 5), 3600) : DEFAULT_IDLE_TIMEOUT_SECONDS,
     };
   } catch {
-    return { visibleCardsCount: DEFAULT_VISIBLE_CARDS, idleScreenEnabled: true };
+    return { visibleCardsCount: DEFAULT_VISIBLE_CARDS, idleScreenEnabled: true, idleTimeoutSeconds: DEFAULT_IDLE_TIMEOUT_SECONDS };
   }
 }
 
 export function saveDesignConfig(config: DesignConfig, branchCode?: string): void {
   const visibleCardsCount = Math.min(Math.max(Math.trunc(config.visibleCardsCount), 1), DEFAULT_VISIBLE_CARDS);
   const idleScreenEnabled = config.idleScreenEnabled !== false;
+  const idleTimeoutSeconds = Math.min(Math.max(Math.trunc(Number(config.idleTimeoutSeconds) || DEFAULT_IDLE_TIMEOUT_SECONDS), 5), 3600);
   if (!branchCode) {
-    localStorage.setItem(DESIGN_STORAGE_KEY, JSON.stringify({ visibleCardsCount, idleScreenEnabled }));
+    localStorage.setItem(DESIGN_STORAGE_KEY, JSON.stringify({ visibleCardsCount, idleScreenEnabled, idleTimeoutSeconds }));
     return;
   }
 
@@ -132,6 +137,6 @@ export function saveDesignConfig(config: DesignConfig, branchCode?: string): voi
     saved = {};
   }
 
-  saved[branchCode] = { visibleCardsCount, idleScreenEnabled };
+  saved[branchCode] = { visibleCardsCount, idleScreenEnabled, idleTimeoutSeconds };
   localStorage.setItem(DESIGN_STORAGE_KEY, JSON.stringify(saved));
 }

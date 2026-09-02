@@ -2,6 +2,7 @@ import { Router } from 'express';
 import {
   getActiveServices,
   getAllServices,
+  createService,
   updateService,
   toggleServiceStatus,
 } from '../controllers/services.controller.js';
@@ -21,14 +22,20 @@ import {
   createKiosk,
   kioskHeartbeat,
 } from '../controllers/kiosks.controller.js';
+import { checkServiceConnection } from '../controllers/connection.controller.js';
+import { getAppConfig, saveAppConfig } from '../controllers/config.controller.js';
 
 const router = Router();
 
 // Rutas de Servicios
 router.get('/services/active', getActiveServices);
 router.get('/services/all', getAllServices);
+router.post('/services', createService);
 router.put('/services/:id', updateService);
 router.patch('/services/:id/toggle', toggleServiceStatus);
+router.post('/services/check-connection', checkServiceConnection);
+router.get('/config', getAppConfig);
+router.put('/config', saveAppConfig);
 
 // Rutas de Turnero / Tickets
 router.post('/tickets', createTicket);

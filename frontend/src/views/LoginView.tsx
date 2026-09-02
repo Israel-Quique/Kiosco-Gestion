@@ -1,6 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ShieldCheck, User, Lock, ArrowRight } from 'lucide-react';
+import { startDailySession } from '../store/authStore';
 
 export const LoginView: React.FC = () => {
   const navigate = useNavigate();
@@ -23,6 +24,7 @@ export const LoginView: React.FC = () => {
       ) {
         // Guardamos el rol para condicionales en el dashboard
         localStorage.setItem('userRole', userLower === 'admin' ? 'admin' : 'designer');
+        startDailySession();
         navigate('/admin');
       } else {
         setError('Usuario o contraseña incorrectos');

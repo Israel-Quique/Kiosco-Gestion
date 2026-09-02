@@ -24,6 +24,26 @@ export async function getAllServices(req: Request, res: Response) {
   }
 }
 
+export async function createService(req: Request, res: Response) {
+  const { code, name, title, description, url, icon, colorTheme, imageUrl, orderIndex, isActive } = req.body;
+  if (!code || !name || !title || !url) {
+    return res.status(400).json({ success: false, message: 'Código, nombre, título y URL son obligatorios' });
+  }
+
+  try {
+    const service = await prisma.service.create({
+      data: {
+        code, name, title, description: description || '', url, icon: icon || 'link',
+        colorTheme: colorTheme || 'blue', imageUrl: imageUrl || '',
+        orderIndex: Number(orderIndex) || 0, isActive: isActive !== false,
+      },
+    });
+    res.status(201).json({ success: true, data: service });
+  } catch (error) {
+    res.status(409).json({ success: false, message: 'No se pudo crear el servicio', error });
+  }
+}
+
 export async function updateService(req: Request, res: Response) {
   const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const { title, description, url, icon, colorTheme, isActive, orderIndex } = req.body;

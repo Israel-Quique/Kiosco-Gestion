@@ -4,6 +4,7 @@ import { Home, ArrowLeft, Check, MapPin, X } from 'lucide-react';
 import { api } from '../services/api.js';
 import { loadDesignConfig } from '../store/cardStore';
 import { DEFAULT_BRANCHES, loadActiveBranchCode, loadBranches, saveActiveBranchCode } from '../store/branchStore';
+import { clearDailySession } from '../store/authStore';
 
 // ─── Tipo de tarjeta ───────────────────────────────────────────────────────────
 interface ServiceCard {
@@ -133,10 +134,7 @@ const ServiceModal: React.FC<ServiceModalProps> = ({ card, onClose }) => {
 
       {/* Estado de carga */}
       {loading && (
-        <div className="absolute inset-0 top-[92px] md:top-[100px] flex flex-col items-center justify-center bg-[#071930]/90 z-10">
-          <LoadingAnimation />
-          <p className="text-white font-black uppercase tracking-widest text-sm">Cargando servicio...</p>
-        </div>
+        <LoadingScreen message="Cargando servicio..." />
       )}
 
       {/* iFrame */}
@@ -170,6 +168,17 @@ const LoadingAnimation: React.FC = () => (
   </div>
 );
 
+const LoadingScreen: React.FC<{ message: string }> = ({ message }) => (
+  <div className="loading-screen absolute inset-0 top-[92px] md:top-[100px] z-10">
+    <div className="loading-screen-copy">
+      <div className="loading-spinner" />
+      <h2>{message}</h2>
+      <p>Estamos esperando respuesta. Si tarda demasiado, puede haber una caída temporal.<br />Si deseas salir, usa &quot;Volver&quot; o &quot;Inicio&quot;.</p>
+    </div>
+    <LoadingAnimation />
+  </div>
+);
+
 const TicketServiceModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const [loading, setLoading] = useState(true);
 
@@ -198,10 +207,7 @@ const TicketServiceModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
       </div>
 
       {loading && (
-        <div className="absolute inset-0 top-[92px] md:top-[100px] flex flex-col items-center justify-center bg-[#071930]/90 z-10">
-          <LoadingAnimation />
-          <p className="text-white font-black uppercase tracking-widest text-sm">Cargando sistema de turnos...</p>
-        </div>
+        <LoadingScreen message="Cargando sistema de turnos..." />
       )}
 
       <iframe
@@ -373,15 +379,15 @@ export const KioskView: React.FC = () => {
   const [cards, setCards] = useState<ServiceCard[]>(DEFAULT_CARDS);
   const [visibleCardsCount, setVisibleCardsCount] = useState<number>(() => loadDesignConfig(activeBranchCode).visibleCardsCount);
   const [idleScreenEnabled, setIdleScreenEnabled] = useState(() => loadDesignConfig(activeBranchCode).idleScreenEnabled);
+  const [idleTimeoutSeconds, setIdleTimeoutSeconds] = useState(() => loadDesignConfig(activeBranchCode).idleTimeoutSeconds);
   const idleRef = useRef<number | null>(null);
-  const IDLE_MS = 90_000; // 90 segundos
 
   const resetIdle = useCallback(() => {
     if (idleRef.current) clearTimeout(idleRef.current);
     setIsIdle(false);
     if (!idleScreenEnabled) return;
-    idleRef.current = window.setTimeout(() => setIsIdle(true), IDLE_MS);
-  }, [idleScreenEnabled]);
+    idleRef.current = window.setTimeout(() => setIsIdle(true), idleTimeoutSeconds * 1000);
+  }, [idleScreenEnabled, idleTimeoutSeconds]);
 
   useEffect(() => {
     const events = ['pointerdown', 'pointermove', 'keydown', 'touchstart'];
@@ -439,10 +445,21 @@ export const KioskView: React.FC = () => {
       const branchConfig = loadDesignConfig(activeBranchCode);
       setVisibleCardsCount(branchConfig.visibleCardsCount);
       setIdleScreenEnabled(branchConfig.idleScreenEnabled);
+      setIdleTimeoutSeconds(branchConfig.idleTimeoutSeconds);
     };
 
     syncDesignConfig();
     window.addEventListener('storage', syncDesignConfig);
+
+    api.getConfig()
+      .then((config) => {
+        setVisibleCardsCount(config.visibleCardsCount);
+        setIdleScreenEnabled(config.idleScreenEnabled);
+        setIdleTimeoutSeconds(config.idleTimeoutSeconds);
+      })
+      .catch(() => {
+        // Usa la configuración local solo como respaldo si no responde el backend.
+      });
 
     return () => {
       window.removeEventListener('storage', syncDesignConfig);
@@ -460,11 +477,8 @@ export const KioskView: React.FC = () => {
   };
 
   const switchBranch = (code: string) => {
-    const branchConfig = loadDesignConfig(code);
     saveActiveBranchCode(code);
     setActiveBranchCode(code);
-    setVisibleCardsCount(branchConfig.visibleCardsCount);
-    setIdleScreenEnabled(branchConfig.idleScreenEnabled);
     window.history.replaceState({}, '', `/kiosco?sucursal=${encodeURIComponent(code)}`);
     setBranchSwitcherOpen(false);
   };
@@ -550,7 +564,7 @@ export const KioskView: React.FC = () => {
             src="/correos2.png"
             alt="Correos de Bolivia"
             className="h-12 object-contain drop-shadow-md cursor-pointer hover:scale-105 transition-transform"
-            onClick={() => navigate('/login')}
+            onClick={() => { clearDailySession(); navigate('/login'); }}
           />
           <div className="flex flex-col border-l-2 border-[#ffcc00]/40 pl-3">
             <span className="text-sm font-black tracking-widest text-[#ffcc00]">Correos de Bolivia</span>

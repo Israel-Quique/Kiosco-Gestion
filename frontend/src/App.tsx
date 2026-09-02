@@ -3,6 +3,11 @@ import { LoginView } from './views/LoginView';
 import { KioskView } from './views/KioskView';
 import { AdminDashboardView } from './views/AdminDashboardView';
 import { QueueDisplayView } from './views/QueueDisplayView';
+import { hasDailySession } from './store/authStore';
+
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  return hasDailySession() ? children : <Navigate to="/login" replace />;
+}
 
 export function App() {
   return (
@@ -10,11 +15,11 @@ export function App() {
       <div className="w-screen h-screen overflow-hidden bg-cb-yellow-main font-montserrat">
         <Routes>
           {/* Rutas principales del sistema */}
-          <Route path="/kiosco" element={<KioskView />} />
+          <Route path="/kiosco" element={<ProtectedRoute><KioskView /></ProtectedRoute>} />
           <Route path="/login" element={<LoginView />} />
           
           {/* Rutas administrativas y de TV */}
-          <Route path="/admin" element={<AdminDashboardView />} />
+          <Route path="/admin" element={<ProtectedRoute><AdminDashboardView /></ProtectedRoute>} />
           <Route path="/queue" element={<QueueDisplayView />} />
           
           {/* Redirección por defecto si la ruta no existe */}

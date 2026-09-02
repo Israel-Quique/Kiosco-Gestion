@@ -24,12 +24,15 @@ import {
   MapPin,
   Check,
   Settings,
+  Wifi,
+  AlertCircle,
 } from 'lucide-react';
 import { Header } from '../components/common/Header';
 import { loadDesignConfig, saveDesignConfig } from '../store/cardStore';
-import { api } from '../services/api.js';
+import { api, type ConnectionCheck } from '../services/api.js';
 import { DEFAULT_BRANCHES, loadActiveBranchCode, loadBranches, saveActiveBranchCode, saveBranches } from '../store/branchStore';
 import type { KioskItem } from '../types/index.js';
+import { clearDailySession } from '../store/authStore';
 
 // ─── TIPOS LOCALES ───────────────────────────────────────────────────────────
 
@@ -164,16 +167,17 @@ const DesignStylesPanel: React.FC<DesignStylesPanelProps> = ({
   const designHasTicket = visibleCardsCount <= 4;
   const designLabel = `${visibleCardsCount} tarjetas ${designHasTicket ? '+ tiquet' : '(sin tiquet)'}`;
   const previewCards = (() => {
+    const activeCards = cards.filter((card) => card.estado === 'activo');
     if (visibleCardsCount === 3) {
       const preferredIds = ['TRACKINGBO', 'POSTAR', 'PREENVIO'];
       const selected = preferredIds
-        .map((id) => cards.find((card) => card.id === id))
+        .map((id) => activeCards.find((card) => card.id === id))
         .filter((card): card is KioskCard => Boolean(card));
-      const remaining = cards.filter((card) => !selected.some((picked) => picked.id === card.id));
+      const remaining = activeCards.filter((card) => !selected.some((picked) => picked.id === card.id));
       return [...selected, ...remaining].slice(0, 3);
     }
 
-    return cards.slice(0, Math.min(cards.length, visibleCardsCount));
+    return activeCards.slice(0, Math.min(activeCards.length, visibleCardsCount));
   })();
 
   type PreviewTile =
@@ -574,11 +578,42 @@ export const AdminDashboardView: React.FC = () => {
   const [activeBranchCode, setActiveBranchCode] = useState(() => loadActiveBranchCode());
   const [visibleCardsCount, setVisibleCardsCount] = useState<number>(() => loadDesignConfig(activeBranchCode).visibleCardsCount);
   const [idleScreenEnabled, setIdleScreenEnabled] = useState(() => loadDesignConfig(activeBranchCode).idleScreenEnabled);
+  const [idleTimeoutSeconds, setIdleTimeoutSeconds] = useState(() => loadDesignConfig(activeBranchCode).idleTimeoutSeconds);
   const [newBranch, setNewBranch] = useState({ name: '', location: '' });
   const [isDesignSaved, setIsDesignSaved] = useState(false);
   const [isSettingsSaved, setIsSettingsSaved] = useState(false);
+  const [connectionChecks, setConnectionChecks] = useState<Record<string, ConnectionCheck>>({});
+  const [checkingConnections, setCheckingConnections] = useState(false);
 
   useEffect(() => {
+    api.getAllServices()
+      .then((services) => {
+        if (services.length > 0) {
+          setCards(services.map((service) => ({
+            id: service.id,
+            nombre: service.title,
+            imagen: service.imageUrl,
+            url: service.url,
+            vista: 'kiosco',
+            estado: service.isActive ? 'activo' : 'inactivo',
+            creadoEn: new Date().toISOString().slice(0, 10),
+          })));
+        }
+      })
+      .catch(() => {
+        // Mantiene las tarjetas locales como respaldo si el backend no responde.
+      });
+
+    api.getConfig()
+      .then((config) => {
+        setVisibleCardsCount(config.visibleCardsCount);
+        setIdleScreenEnabled(config.idleScreenEnabled);
+        setIdleTimeoutSeconds(config.idleTimeoutSeconds);
+      })
+      .catch(() => {
+        // El fallback local permite abrir el panel si el backend está apagado.
+      });
+
     api.getKiosks()
       .then((remoteBranches) => {
         const storedBranches = loadBranches();
@@ -597,21 +632,34 @@ export const AdminDashboardView: React.FC = () => {
 
   useEffect(() => {
     saveActiveBranchCode(activeBranchCode);
-    const branchConfig = loadDesignConfig(activeBranchCode);
-    setVisibleCardsCount(branchConfig.visibleCardsCount);
-    setIdleScreenEnabled(branchConfig.idleScreenEnabled);
     setIsDesignSaved(false);
     setIsSettingsSaved(false);
   }, [activeBranchCode]);
 
-  const handleSaveDesign = () => {
-    saveDesignConfig({ visibleCardsCount, idleScreenEnabled }, activeBranchCode);
-    setIsDesignSaved(true);
+  const handleSaveDesign = async () => {
+    try {
+      const config = await api.saveConfig({ visibleCardsCount, idleScreenEnabled, idleTimeoutSeconds });
+      setVisibleCardsCount(config.visibleCardsCount);
+      setIdleScreenEnabled(config.idleScreenEnabled);
+      setIdleTimeoutSeconds(config.idleTimeoutSeconds);
+      saveDesignConfig(config, activeBranchCode);
+      setIsDesignSaved(true);
+    } catch {
+      setIsDesignSaved(false);
+    }
   };
 
-  const handleSaveSettings = () => {
-    saveDesignConfig({ visibleCardsCount, idleScreenEnabled }, activeBranchCode);
-    setIsSettingsSaved(true);
+  const handleSaveSettings = async () => {
+    try {
+      const config = await api.saveConfig({ visibleCardsCount, idleScreenEnabled, idleTimeoutSeconds });
+      setVisibleCardsCount(config.visibleCardsCount);
+      setIdleScreenEnabled(config.idleScreenEnabled);
+      setIdleTimeoutSeconds(config.idleTimeoutSeconds);
+      saveDesignConfig(config, activeBranchCode);
+      setIsSettingsSaved(true);
+    } catch {
+      setIsSettingsSaved(false);
+    }
   };
 
   const handleChangeVisibleCardsCount = (count: number) => {
@@ -725,7 +773,27 @@ export const AdminDashboardView: React.FC = () => {
   const handleOpenEdit = (card: KioskCard) => setModalCard(card);
   const handleCloseModal = () => setModalCard(false);
 
-  const handleSaveCard = (saved: KioskCard) => {
+  const handleSaveCard = async (saved: KioskCard) => {
+    const serviceInput = {
+      code: saved.id,
+      name: saved.nombre,
+      title: saved.nombre,
+      description: '',
+      url: saved.url,
+      icon: 'link',
+      colorTheme: 'blue',
+      imageUrl: saved.imagen,
+      orderIndex: cards.length + 1,
+      isActive: saved.estado === 'activo',
+    };
+    try {
+      const persisted = saved.id && cards.some((card) => card.id === saved.id)
+        ? await api.updateService(saved.id, serviceInput)
+        : await api.createService(serviceInput);
+      saved = { ...saved, id: persisted.id };
+    } catch {
+      // El estado local permite continuar trabajando durante una caída del backend.
+    }
     setCards(prev => {
       const idx = prev.findIndex(c => c.id === saved.id);
       if (idx >= 0) {
@@ -743,12 +811,36 @@ export const AdminDashboardView: React.FC = () => {
     setCards(prev => prev.filter(c => c.id !== id));
   };
 
-  const handleToggleEstado = (id: string) => {
-    setCards(prev => prev.map(c => {
-      if (c.id !== id) return c;
-      const next: CardStatus = c.estado === 'activo' ? 'inactivo' : 'activo';
-      return { ...c, estado: next };
+  const handleToggleEstado = async (id: string) => {
+    try {
+      const persisted = await api.toggleService(id);
+      setCards(prev => prev.map((card) => card.id === id ? { ...card, estado: persisted.isActive ? 'activo' : 'inactivo' } : card));
+    } catch {
+      setCards(prev => prev.map(c => {
+        if (c.id !== id) return c;
+        const next: CardStatus = c.estado === 'activo' ? 'inactivo' : 'activo';
+        return { ...c, estado: next };
+      }));
+    }
+  };
+
+  const handleCheckConnections = async () => {
+    setCheckingConnections(true);
+    const results = await Promise.all(cards.map(async (card) => {
+      try {
+        return [card.id, await api.checkServiceConnection(card.url)] as const;
+      } catch {
+        return [card.id, {
+          ok: false,
+          status: null,
+          responseTimeMs: 0,
+          checkedAt: new Date().toISOString(),
+          message: 'No se pudo consultar el servidor',
+        }] as const;
+      }
     }));
+    setConnectionChecks(Object.fromEntries(results));
+    setCheckingConnections(false);
   };
 
   // Tarjetas filtradas
@@ -759,12 +851,18 @@ export const AdminDashboardView: React.FC = () => {
   });
 
   const countByEstado = (e: CardStatus) => cards.filter(c => c.estado === e).length;
+  const checkedCount = Object.values(connectionChecks).filter((check) => check.ok).length;
+  const cardGroups = [
+    { estado: 'activo' as const, title: 'Tarjetas visibles', cards: filteredCards.filter((card) => card.estado === 'activo') },
+    { estado: 'inactivo' as const, title: 'Tarjetas apagadas', cards: filteredCards.filter((card) => card.estado === 'inactivo') },
+    { estado: 'borrador' as const, title: 'Borradores', cards: filteredCards.filter((card) => card.estado === 'borrador') },
+  ].filter((group) => group.cards.length > 0);
 
   return (
     <div className="relative w-full h-full flex flex-col bg-slate-100 overflow-hidden font-montserrat select-none">
       <Header
         currentMode="admin"
-        onLogout={() => navigate('/login')}
+        onLogout={() => { clearDailySession(); navigate('/login'); }}
         title="PANEL DE GESTIÓN AGBC"
       />
 
@@ -884,14 +982,32 @@ export const AdminDashboardView: React.FC = () => {
                 ))}
               </div>
 
-              <button
-                onClick={handleOpenCreate}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-cb-yellow-bright to-cb-yellow-main text-cb-blue-navy font-black text-xs uppercase shadow-md hover:scale-105 active:scale-95 transition-all flex-shrink-0"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Nueva Tarjeta</span>
-              </button>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <button
+                  onClick={handleCheckConnections}
+                  disabled={checkingConnections || cards.length === 0}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-cb-blue-navy text-cb-yellow-bright font-black text-xs uppercase shadow-md hover:bg-cb-blue-royal disabled:opacity-60 transition-all"
+                >
+                  <Wifi className={`w-4 h-4 ${checkingConnections ? 'animate-pulse' : ''}`} />
+                  <span>{checkingConnections ? 'Verificando...' : 'Verificar conexión'}</span>
+                </button>
+                <button
+                  onClick={handleOpenCreate}
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-cb-yellow-bright to-cb-yellow-main text-cb-blue-navy font-black text-xs uppercase shadow-md hover:scale-105 active:scale-95 transition-all"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Nueva Tarjeta</span>
+                </button>
+              </div>
             </div>
+
+            {Object.keys(connectionChecks).length > 0 && (
+              <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm text-xs font-bold text-slate-600">
+                <Wifi className="h-4 w-4 text-cb-blue-navy" />
+                <span>Conexión verificada: {checkedCount} de {cards.length} páginas responden</span>
+                <span className="ml-auto text-[10px] uppercase text-slate-400">Última revisión: {new Date(Math.max(...Object.values(connectionChecks).map((check) => new Date(check.checkedAt).getTime()))).toLocaleTimeString()}</span>
+              </div>
+            )}
 
             {/* Grid de tarjetas */}
             {filteredCards.length === 0 ? (
@@ -903,8 +1019,16 @@ export const AdminDashboardView: React.FC = () => {
                 </button>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5 gap-5">
-                {filteredCards.map(card => (
+              <div className="flex flex-col gap-6">
+                {cardGroups.map((group) => (
+                  <section key={group.estado}>
+                    <div className="mb-3 flex items-center gap-2">
+                      {group.estado === 'activo' ? <CheckCircle className="h-4 w-4 text-emerald-600" /> : <AlertCircle className="h-4 w-4 text-rose-500" />}
+                      <h3 className="text-xs font-black uppercase tracking-wider text-slate-600">{group.title}</h3>
+                      <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-black text-slate-500">{group.cards.length}</span>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5 gap-5">
+                {group.cards.map(card => (
                   <div
                     key={card.id}
                     className={`relative group flex flex-col bg-white rounded-2xl border-2 shadow-sm overflow-hidden transition-all hover:shadow-lg hover:-translate-y-0.5 ${
@@ -948,6 +1072,13 @@ export const AdminDashboardView: React.FC = () => {
                         <VistaBadge vista={card.vista} />
                         <span className="text-[9px] text-slate-400 font-semibold ml-auto">{card.creadoEn}</span>
                       </div>
+                      {connectionChecks[card.id] && (
+                        <div className={`flex items-center gap-1.5 text-[10px] font-black ${connectionChecks[card.id].ok ? 'text-emerald-600' : 'text-rose-600'}`}>
+                          <span className={`h-2 w-2 rounded-full ${connectionChecks[card.id].ok ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+                          {connectionChecks[card.id].ok ? `Conectado (${connectionChecks[card.id].status})` : (connectionChecks[card.id].message || 'Sin respuesta')}
+                          <span className="ml-auto font-semibold text-slate-400">{connectionChecks[card.id].responseTimeMs} ms</span>
+                        </div>
+                      )}
                     </div>
 
                     {/* Acciones */}
@@ -986,6 +1117,9 @@ export const AdminDashboardView: React.FC = () => {
                       </div>
                     </div>
                   </div>
+                ))}
+                    </div>
+                  </section>
                 ))}
               </div>
             )}
@@ -1030,6 +1164,22 @@ export const AdminDashboardView: React.FC = () => {
                     className="h-5 w-5 accent-cb-blue-navy"
                   />
                 </label>
+              </div>
+              <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <label htmlFor="idle-timeout" className="block text-sm font-black uppercase text-cb-blue-navy">Mostrar animación después de</label>
+                <div className="mt-2 flex items-center gap-3">
+                  <input
+                    id="idle-timeout"
+                    type="number"
+                    min="5"
+                    max="3600"
+                    step="1"
+                    value={idleTimeoutSeconds}
+                    onChange={(event) => { setIdleTimeoutSeconds(Math.min(Math.max(Number(event.target.value) || 5, 5), 3600)); setIsSettingsSaved(false); }}
+                    className="w-32 rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-bold text-cb-blue-navy outline-none focus:border-cb-yellow-main"
+                  />
+                  <span className="text-sm font-semibold text-slate-500">segundos sin actividad</span>
+                </div>
               </div>
               <button
                 type="button"
