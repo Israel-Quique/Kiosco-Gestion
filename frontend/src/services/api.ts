@@ -1,8 +1,7 @@
 import { io, Socket } from 'socket.io-client';
 import { ServiceItem, TicketItem, QueueData, KioskItem, AnalyticsOverview } from '../types/index.js';
 
-const API_HOST = window.location.hostname || 'localhost';
-const API_BASE_URL = `http://${API_HOST}:3002/api`;
+const API_BASE_URL = '/api';
 
 export interface ConnectionCheck {
   ok: boolean;
@@ -19,7 +18,7 @@ export interface AppConfig {
 }
 
 // Socket.io singleton
-export const socket: Socket = io(`http://${API_HOST}:3002`, {
+export const socket: Socket = io({
   autoConnect: true,
   reconnection: true,
 });
