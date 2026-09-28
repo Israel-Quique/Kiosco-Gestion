@@ -87,6 +87,7 @@ const FIVE_LAYOUT_CONFIG = {
 };
 
 const TICKET_URL = 'http://172.65.10.55:8106/tickets';
+const TICKET_AUTO_RETURN_MS = 10 * 60 * 1000;
 
 // ─── Modal de servicio embebido ────────────────────────────────────────────────
 interface ServiceModalProps {
@@ -181,6 +182,11 @@ const LoadingScreen: React.FC<{ message: string }> = ({ message }) => (
 
 const TicketServiceModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const timer = window.setTimeout(onClose, TICKET_AUTO_RETURN_MS);
+    return () => window.clearTimeout(timer);
+  }, [onClose]);
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-black/70 animate-fadeIn">

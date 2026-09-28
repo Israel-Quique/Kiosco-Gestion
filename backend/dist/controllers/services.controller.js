@@ -50,7 +50,7 @@ async function createService(req, res) {
 }
 async function updateService(req, res) {
     const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-    const { title, description, url, icon, colorTheme, isActive, orderIndex } = req.body;
+    const { title, description, url, icon, colorTheme, imageUrl, isActive, orderIndex } = req.body;
     try {
         const updated = await prisma_js_1.prisma.service.update({
             where: { id },
@@ -60,6 +60,7 @@ async function updateService(req, res) {
                 url,
                 icon,
                 colorTheme,
+                imageUrl,
                 isActive,
                 orderIndex,
             },

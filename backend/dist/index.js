@@ -20,7 +20,7 @@ exports.io = new socket_io_1.Server(httpServer, {
     },
 });
 app.use((0, cors_1.default)());
-app.use(express_1.default.json());
+app.use(express_1.default.json({ limit: '15mb' }));
 // Logging middleware
 app.use((req, res, next) => {
     console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);

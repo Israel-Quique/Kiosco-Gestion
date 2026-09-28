@@ -405,6 +405,17 @@ const CardModal: React.FC<CardModalProps> = ({ card, onClose, onSave }) => {
 
   const isEdit = !!card?.id;
 
+  const handleImageFile = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      setForm((current) => ({ ...current, imagen: String(reader.result || '') }));
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.nombre || !form.url) return;
@@ -461,20 +472,29 @@ const CardModal: React.FC<CardModalProps> = ({ card, onClose, onSave }) => {
             />
           </div>
 
-          {/* Imagen URL */}
+          {/* Imagen */}
           <div>
             <label className="flex items-center gap-1.5 text-xs font-black text-slate-700 uppercase mb-1.5">
               <Image className="w-3.5 h-3.5 text-cb-blue-navy" />
-              URL de la Imagen
+              Imagen de la Tarjeta
             </label>
             <div className="flex items-center gap-2">
               <input
-                type="url"
+                type="text"
                 value={form.imagen}
                 onChange={e => setForm({ ...form, imagen: e.target.value })}
-                placeholder="https://ejemplo.com/imagen.png"
+                placeholder="URL o imagen cargada"
                 className="flex-1 px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono text-slate-700 focus:ring-2 focus:ring-cb-yellow-main focus:border-cb-yellow-main outline-none transition-all"
               />
+              <label className="cursor-pointer rounded-xl bg-cb-blue-navy px-4 py-2.5 text-[10px] font-black uppercase text-cb-yellow-bright shadow-sm transition hover:bg-cb-blue-royal">
+                Subir
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageFile}
+                  className="hidden"
+                />
+              </label>
               {form.imagen && (
                 <img
                   src={form.imagen}
@@ -484,7 +504,7 @@ const CardModal: React.FC<CardModalProps> = ({ card, onClose, onSave }) => {
                 />
               )}
             </div>
-            <p className="text-[10px] text-slate-400 mt-1 ml-1">Pega la URL pública de la imagen. Se mostrará en la tarjeta del kiosco.</p>
+            <p className="text-[10px] text-slate-400 mt-1 ml-1">Puedes subir una imagen desde el equipo o pegar una URL. Al subirla se guarda en la base de datos.</p>
           </div>
 
           {/* URL de destino */}

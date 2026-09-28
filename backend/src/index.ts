@@ -18,7 +18,7 @@ export const io = new Server(httpServer, {
 });
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '15mb' }));
 
 // Logging middleware
 app.use((req, res, next) => {
